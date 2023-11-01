@@ -1,0 +1,115 @@
+Air Quality Monitoring Setup
+
+The Whole Project done in Tinercad Website 
+
+COMPONENTS :
+
+Arduino Uno Board
+Gas Sensor
+Wifi Module ESP8266
+Breadboard - 2
+Resistor - 1k ohm -2, 520k ohm -2
+Connecting Wires
+
+CONNECTIONS :
+
+Gas Sensor:
+
+* Connect Gas Sensor in BB One side 3 pin should be Ground 
+* On other side contact one pin to GND,other with 1k R in GND
+* Other Pin A0 in Arduino Uno Board
+
+* 5V and GND is given to BB from Arduino
+
+WiFi Module:
+
+* Give Separate Power supply 3V & GND in BB
+* Connect 1k R with Vcc
+* Connect 520k ohm R with Wifi GND & with Arduino 
+* Connect Tx and Rx Respectively
+* Then Connect Single from Arduino
+
+Connection Done...
+
+Final Code :
+
+int analogPin = A0; // Analog pin where the gas sensor is connected
+int sensorValue = 0;
+int pin8 = 8; // Digital pin for controlling an external device (e.g., a fan or indicator)
+
+String ssid = "Simulator Wifi";  // SSID to connect to
+String password = ""; // Virtual wifi has no password
+String host = "api.thingspeak.com"; // Thingspeak API
+const int httpPort = 80;
+String url = "/update?api_key=9N1UH55Y45V3FIL8&field1=";
+
+void setupESP8266() {
+  // Start our ESP8266 Serial Communication
+  Serial.begin(115200);   // Serial connection over USB to computer
+  Serial.println("AT");   // Serial connection on Tx / Rx port to ESP8266
+  delay(10); // Wait a little for the ESP to respond
+  if (Serial.find("OK"))
+    Serial.println("ESP8266 OK!!!");
+
+  // Connect to Simulator Wifi
+  Serial.println("AT+CWJAP=\"" + ssid + "\",\"" + password + "\"");
+  delay(10); // Wait a little for the ESP to respond
+  if (Serial.find("OK"))
+    Serial.println("Connected to WiFi!!!");
+
+  // Open TCP connection to the host
+  Serial.println("AT+CIPSTART=\"TCP\",\"" + host + "\"," + httpPort);
+  delay(50); // Wait a little for the ESP to respond
+  if (Serial.find("OK"))
+    Serial.println("ESP8266 Connected to server!!!");
+}
+
+void sendToThingspeak(int value) {
+  // Construct the HTTP request
+  String httpPacket = "GET " + url + String(value) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n";
+  int length = httpPacket.length();
+
+  // Send the message length
+  Serial.print("AT+CIPSEND=");
+  Serial.println(length);
+  delay(10); // Wait a little for the ESP to respond
+  if (Serial.find(">")) {
+    // Send the HTTP request
+    Serial.print(httpPacket);
+    delay(10); // Wait a little for the ESP to respond
+    if (Serial.find("SEND OK\r\n"))
+      Serial.println("ESP8266 sends data to the server");
+  }
+}
+
+void setup() {
+  pinMode(analogPin, INPUT);
+  pinMode(pin8, OUTPUT);
+  Serial.begin(9600); // Initialize serial communication for debugging
+  setupESP8266();
+}
+
+void loop() {
+  delay(3000); // Delay for 3 seconds (adjust as needed)
+  sensorValue = analogRead(analogPin);
+  Serial.print("Air Quality in PPM = ");
+  Serial.println(sensorValue);
+
+  if (sensorValue < 200) {
+    Serial.println("Good Air Quality");
+    digitalWrite(pin8, LOW); // Turn off the external device
+  } else if (sensorValue >= 200 && sensorValue < 400) {
+    Serial.println("Moderate Air Quality");
+    digitalWrite(pin8, LOW); // Turn off the external device
+  } else {
+    Serial.println("Poor Air Quality");
+    digitalWrite(pin8, HIGH); // Turn on the external device
+  }
+
+  // Send sensor data to Thingspeak
+  sendToThingspeak(sensorValue);
+
+  delay(10000); // Delay for 10 seconds
+}
+
+ 
